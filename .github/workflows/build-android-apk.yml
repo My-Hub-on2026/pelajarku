@@ -1,0 +1,72 @@
+name: Build PelajarKu Android APK
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  build-apk:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.8'
+          channel: stable
+          cache: true
+
+      - name: Generate Android project
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/pelajarku_source
+          cp -R lib test /tmp/pelajarku_source/
+          cp pubspec.yaml analysis_options.yaml /tmp/pelajarku_source/
+          flutter create --platforms=android --org=id.pelajarku --project-name=pelajarku .
+          rm -rf lib test
+          cp -R /tmp/pelajarku_source/lib /tmp/pelajarku_source/test ./
+          cp /tmp/pelajarku_source/pubspec.yaml /tmp/pelajarku_source/analysis_options.yaml ./
+
+      - name: Configure Android
+        run: dart run tool/configure_android.dart
+
+      - name: Install packages
+        run: flutter pub get
+
+      - name: Analyze source
+        run: flutter analyze --no-fatal-infos --no-fatal-warnings
+
+      - name: Run tests
+        run: flutter test
+
+      - name: Build installable APK
+        run: flutter build apk --release
+
+      - name: Prepare APK
+        shell: bash
+        run: |
+          mkdir -p dist
+          cp build/app/outputs/flutter-apk/app-release.apk dist/PelajarKu-0.1.0.apk
+          sha256sum dist/PelajarKu-0.1.0.apk > dist/PelajarKu-0.1.0.apk.sha256
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: PelajarKu-Android-APK
+          path: dist/
+          if-no-files-found: error
+          retention-days: 30
