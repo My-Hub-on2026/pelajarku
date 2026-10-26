@@ -1,0 +1,30 @@
+// Salin/selaraskan bagian berikut ke android/app/build.gradle.kts
+// setelah menjalankan bootstrap.sh.
+
+android {
+    namespace = "id.pelajarku.pelajarku"
+    compileSdk = 36
+
+    compileOptions {
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
+        isCoreLibraryDesugaringEnabled = true
+    }
+
+    kotlinOptions {
+        jvmTarget = JavaVersion.VERSION_17.toString()
+    }
+
+    defaultConfig {
+        multiDexEnabled = true
+        applicationId = "id.pelajarku.pelajarku"
+        minSdk = 24
+        targetSdk = 36
+        versionCode = flutter.versionCode
+        versionName = flutter.versionName
+    }
+}
+
+dependencies {
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
+}
