@@ -16,7 +16,7 @@ function requireUid(request) {
 }
 function validEmail(v) {
   return typeof v === "string" && v.length <= 254 &&
-    /^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(v);
+    /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
 }
 function digest(uid, value) {
   return crypto.createHmac("sha256", verificationSalt.value())
@@ -69,7 +69,7 @@ exports.confirmParentEmailVerification = onCall(
  async request => {
   const uid = requireUid(request);
   const code = String(request.data?.code || "");
-  if (!/^\\d{6}$/.test(code)) throw new HttpsError("invalid-argument", "Kode harus 6 digit");
+  if (!/^\d{6}$/.test(code)) throw new HttpsError("invalid-argument", "Kode harus 6 digit");
   const ref = db.doc("parentMailLinks/" + uid);
   await db.runTransaction(async tx => {
     const snap = await tx.get(ref);
