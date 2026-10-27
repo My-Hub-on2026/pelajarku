@@ -5,6 +5,10 @@ on:
   push:
     branches: [main]
 
+concurrency:
+  group: pelajarku-build-main
+  cancel-in-progress: true
+
 permissions:
   contents: read
 
@@ -48,6 +52,11 @@ jobs:
         env:
           FIREBASE_ANDROID_JSON_B64: ${{ secrets.FIREBASE_ANDROID_JSON_B64 }}
         run: python3 tool/configure_firebase_ci.py
+
+      - name: Validate backend and setup scripts
+        run: |
+          node --check backend/functions/index.js
+          python3 -m py_compile tool/configure_firebase_ci.py
 
       - name: Install packages
         run: flutter pub get
