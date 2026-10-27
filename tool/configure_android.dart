@@ -64,6 +64,8 @@ dependencies {
   const permissions = '''
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
+    <uses-permission android:name="android.permission.VIBRATE" />
 ''';
 
   if (!manifest.contains('android.permission.POST_NOTIFICATIONS')) {
