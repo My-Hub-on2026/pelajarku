@@ -1,4 +1,5 @@
 import 'package:cloud_functions/cloud_functions.dart';
+import 'package:firebase_app_check/firebase_app_check.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart';
@@ -15,6 +16,10 @@ class ParentEmailService {
   Future<void> initialize() async {
     try {
       if (Firebase.apps.isEmpty) await Firebase.initializeApp();
+      await FirebaseAppCheck.instance.activate(
+        providerAndroid: AndroidProvider.playIntegrity,
+        providerApple: AppleProvider.appAttest,
+      );
       await FirebaseAuth.instance.signInAnonymously();
       ready = FirebaseAuth.instance.currentUser != null;
       status = ready ? 'Cloud tersedia, email perlu diverifikasi' :
