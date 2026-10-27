@@ -171,6 +171,23 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
           ),
           const SizedBox(height: 12),
+          Card(child: ListTile(
+            leading: const Icon(Icons.notifications_active),
+            title: const Text('Uji suara dan getar'),
+            subtitle: const Text('Cek pemberitahuan sekarang dan jumlah pengingat yang aktif.'),
+            trailing: FilledButton.tonal(
+              onPressed: () async {
+                await store.testNotification();
+                final total = await store.pendingNotifications();
+                if (!context.mounted) return;
+                ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                  content: Text('Notifikasi uji dikirim. Jadwal aktif: $total. Periksa mode senyap dan setelan channel.'),
+                ));
+              },
+              child: const Text('Tes'),
+            ),
+          )),
+          const SizedBox(height: 12),
           const Card(
             child: Padding(
               padding: EdgeInsets.all(18),
