@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'attendance_screen.dart';
 import 'notes_screen.dart';
 import 'scan_screen.dart';
+import 'parent_email_screen.dart';
 import 'settings_screen.dart';
 
 class MoreScreen extends StatelessWidget {
@@ -43,6 +44,14 @@ class MoreScreen extends StatelessWidget {
             subtitle: 'Ambil foto atau PDF, ubah menjadi teks dan simpan catatan.',
             onTap: () => Navigator.push(context,
               MaterialPageRoute<void>(builder: (_) => const ScanScreen())),
+          ),
+          const SizedBox(height: 10),
+          _MenuCard(
+            icon: Icons.mark_email_unread_outlined,
+            title: 'Email Orang Tua',
+            subtitle: 'Hubungkan dan verifikasi alamat email wali (memerlukan layanan cloud).',
+            onTap: () => Navigator.push(context,
+              MaterialPageRoute<void>(builder: (_) => const ParentEmailScreen())),
           ),
           const SizedBox(height: 10),
           _MenuCard(
