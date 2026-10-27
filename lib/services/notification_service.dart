@@ -4,90 +4,135 @@ import 'package:timezone/timezone.dart' as tz;
 
 import '../models/school_task.dart';
 
+/// Pengingat lokal. Channel v2 wajib berbeda karena Android menyimpan
+/// pilihan suara/getaran channel lama sejak pertama kali dibuat.
 class NotificationService {
   NotificationService._();
-
   static final NotificationService instance = NotificationService._();
+  static const String channelId = 'pelajarku_pengingat_bersuara_v2';
 
   final FlutterLocalNotificationsPlugin _plugin =
       FlutterLocalNotificationsPlugin();
-
   bool _initialized = false;
 
-  Future<void> initialize({String timezoneName = 'Asia/Jakarta'}) async {
-    if (_initialized) return;
+  static const NotificationDetails details = NotificationDetails(
+    android: AndroidNotificationDetails(
+      channelId,
+      'Pengingat PelajarKu (Suara & Getar)',
+      channelDescription: 'Pengingat tugas dan ujian dengan suara dan getaran.',
+      importance: Importance.max,
+      priority: Priority.max,
+      playSound: true,
+      enableVibration: true,
+      ticker: 'Pengingat tugas PelajarKu',
+    ),
+    iOS: DarwinNotificationDetails(
+      presentAlert: true,
+      presentBadge: true,
+      presentSound: true,
+    ),
+  );
 
+  Future<void> initialize({String timezoneName = 'Asia/Jakarta'}) async {
     tz_data.initializeTimeZones();
     try {
       tz.setLocalLocation(tz.getLocation(timezoneName));
     } catch (_) {
       tz.setLocalLocation(tz.getLocation('Asia/Jakarta'));
     }
-
-    const AndroidInitializationSettings android =
-        AndroidInitializationSettings('@mipmap/ic_launcher');
-    const DarwinInitializationSettings ios = DarwinInitializationSettings(
-      requestAlertPermission: false,
-      requestBadgePermission: false,
-      requestSoundPermission: false,
+    if (_initialized) return;
+    await _plugin.initialize(
+      settings: const InitializationSettings(
+        android: AndroidInitializationSettings('@mipmap/ic_launcher'),
+        iOS: DarwinInitializationSettings(
+          requestAlertPermission: false,
+          requestBadgePermission: false,
+          requestSoundPermission: false,
+        ),
+      ),
     );
-
-    const InitializationSettings settings = InitializationSettings(
-      android: android,
-      iOS: ios,
-    );
-
-    await _plugin.initialize(settings: settings);
-    _initialized = true;
-  }
-
-  Future<void> requestPermissions() async {
     await _plugin
         .resolvePlatformSpecificImplementation<
             AndroidFlutterLocalNotificationsPlugin>()
-        ?.requestNotificationsPermission();
+        ?.createNotificationChannel(
+          const AndroidNotificationChannel(
+            channelId,
+            'Pengingat PelajarKu (Suara & Getar)',
+            description: 'Pengingat tugas dan ujian dengan suara dan getaran.',
+            importance: Importance.max,
+            playSound: true,
+            enableVibration: true,
+          ),
+        );
+    _initialized = true;
+  }
 
-    await _plugin
+  Future<bool> requestPermissions() async {
+    final AndroidFlutterLocalNotificationsPlugin? android = _plugin
+        .resolvePlatformSpecificImplementation<
+            AndroidFlutterLocalNotificationsPlugin>();
+    final bool? notif = await android?.requestNotificationsPermission();
+    // SCHEDULE_EXACT_ALARM memerlukan izin terpisah pada Android 12+.
+    // Pengguna dapat menolak; penjadwalan akan otomatis beralih ke inexact.
+    await android?.requestExactAlarmsPermission();
+    final bool? ios = await _plugin
         .resolvePlatformSpecificImplementation<
             IOSFlutterLocalNotificationsPlugin>()
         ?.requestPermissions(alert: true, badge: true, sound: true);
+    return (notif ?? ios ?? true);
+  }
+
+  Future<bool> notificationsEnabled() async {
+    return await _plugin
+            .resolvePlatformSpecificImplementation<
+                AndroidFlutterLocalNotificationsPlugin>()
+            ?.areNotificationsEnabled() ??
+        true;
+  }
+
+  Future<int> pendingCount() async =>
+      (await _plugin.pendingNotificationRequests()).length;
+
+  Future<void> showTest() async {
+    if (!_initialized) return;
+    await _plugin.show(
+      id: 20261027,
+      title: 'Tes Pengingat PelajarKu',
+      body: 'Jika pengaturan perangkat mengizinkan, ini akan berbunyi dan bergetar.',
+      notificationDetails: details,
+    );
   }
 
   Future<void> scheduleTask(SchoolTask task, String courseName) async {
-    if (!_initialized || task.reminderAt == null || task.isDone) return;
+    if (!_initialized) return;
+    // Selalu batalkan yang lama dahulu, termasuk saat pengingat dinonaktifkan.
+    await cancelTask(task);
+    if (task.reminderAt == null || task.isDone) return;
     if (!task.reminderAt!.isAfter(DateTime.now())) return;
 
-    await cancelTask(task);
-
-    const NotificationDetails details = NotificationDetails(
-      android: AndroidNotificationDetails(
-        'pelajarku_deadline',
-        'Pengingat Tugas dan Ujian',
-        channelDescription: 'Pengingat tenggat tugas, ujian, dan kegiatan sekolah.',
-        importance: Importance.high,
-        priority: Priority.high,
-      ),
-      iOS: DarwinNotificationDetails(
-        presentAlert: true,
-        presentBadge: true,
-        presentSound: true,
-      ),
-    );
-
-    final tz.TZDateTime scheduledDate = tz.TZDateTime.from(
-      task.reminderAt!,
-      tz.local,
-    );
-
+    final android = _plugin.resolvePlatformSpecificImplementation<
+        AndroidFlutterLocalNotificationsPlugin>();
+    final exact = await android?.canScheduleExactNotifications() ?? false;
     await _plugin.zonedSchedule(
       id: task.notificationId,
       title: 'Pengingat ${task.type.name}',
       body: '$courseName • ${task.title}',
-      scheduledDate: scheduledDate,
+      scheduledDate: tz.TZDateTime.from(task.reminderAt!, tz.local),
       notificationDetails: details,
-      androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+      androidScheduleMode: exact
+          ? AndroidScheduleMode.exactAllowWhileIdle
+          : AndroidScheduleMode.inexactAllowWhileIdle,
       payload: task.id,
     );
+  }
+
+  Future<void> rescheduleAll(
+    List<SchoolTask> tasks,
+    String Function(String?) getCourseName,
+  ) async {
+    for (final task in tasks) {
+      await scheduleTask(task, getCourseName(task.courseId));
+    }
   }
 
   Future<void> cancelTask(SchoolTask task) async {
