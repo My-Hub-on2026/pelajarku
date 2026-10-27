@@ -16,9 +16,14 @@ class ParentEmailService {
   Future<void> initialize() async {
     try {
       if (Firebase.apps.isEmpty) await Firebase.initializeApp();
+      const bool debugAppCheck = bool.fromEnvironment('PELAJARKU_DEBUG_APPCHECK');
       await FirebaseAppCheck.instance.activate(
-        providerAndroid: const AndroidPlayIntegrityProvider(),
-        providerApple: const AppleAppAttestWithDeviceCheckFallbackProvider(),
+        providerAndroid: debugAppCheck
+            ? const AndroidDebugProvider()
+            : const AndroidPlayIntegrityProvider(),
+        providerApple: debugAppCheck
+            ? const AppleDebugProvider()
+            : const AppleAppAttestWithDeviceCheckFallbackProvider(),
       );
       await FirebaseAuth.instance.signInAnonymously();
       ready = FirebaseAuth.instance.currentUser != null;
