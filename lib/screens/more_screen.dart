@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'attendance_screen.dart';
 import 'notes_screen.dart';
+import 'scan_screen.dart';
 import 'settings_screen.dart';
 
 class MoreScreen extends StatelessWidget {
@@ -34,6 +35,14 @@ class MoreScreen extends StatelessWidget {
               context,
               MaterialPageRoute<void>(builder: (_) => const NotesScreen()),
             ),
+          ),
+          const SizedBox(height: 10),
+          _MenuCard(
+            icon: Icons.document_scanner_outlined,
+            title: 'Pindai gambar & PDF',
+            subtitle: 'Ambil foto atau PDF, ubah menjadi teks dan simpan catatan.',
+            onTap: () => Navigator.push(context,
+              MaterialPageRoute<void>(builder: (_) => const ScanScreen())),
           ),
           const SizedBox(height: 10),
           _MenuCard(
