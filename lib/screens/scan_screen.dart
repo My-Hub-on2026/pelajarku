@@ -52,12 +52,12 @@ class _ScanScreenState extends State<ScanScreen> {
 
   Future<void> _fromPdf() async {
     try {
-      final selected = await FilePicker().pickFiles(
+      final selected = await FilePicker.pickFiles(
         type: FileType.custom,
         allowedExtensions: <String>['pdf'],
       );
-      if (selected == null || selected.files.single.path == null) return;
-      final path = selected.files.single.path!;
+      if (selected.isEmpty || selected.single.path == null) return;
+      final path = selected.single.path!;
       await _run(() async {
         final document = await PdfDocument.openFile(path);
         final recognizer = TextRecognizer(script: TextRecognitionScript.latin);
