@@ -37,6 +37,8 @@ class AppStore extends ChangeNotifier {
         timezoneName: settings['timezone'] ?? 'Asia/Jakarta',
       );
       await reload();
+      await _notifications.rescheduleAll(tasks,
+          (id) => courseById(id)?.name ?? 'Sekolah');
       errorMessage = null;
     } catch (error, stackTrace) {
       errorMessage = error.toString();
@@ -195,8 +197,17 @@ class AppStore extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> requestNotificationPermission() =>
-      _notifications.requestPermissions();
+  Future<bool> requestNotificationPermission() async {
+    final granted = await _notifications.requestPermissions();
+    if (granted) {
+      await _notifications.rescheduleAll(tasks,
+          (id) => courseById(id)?.name ?? 'Sekolah');
+    }
+    return granted;
+  }
+
+  Future<void> testNotification() => _notifications.showTest();
+  Future<int> pendingNotifications() => _notifications.pendingCount();
 }
 
 class AppScope extends InheritedNotifier<AppStore> {
