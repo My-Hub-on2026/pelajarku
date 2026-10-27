@@ -52,7 +52,7 @@ class _ScanScreenState extends State<ScanScreen> {
 
   Future<void> _fromPdf() async {
     try {
-      final selected = await FilePicker.platform.pickFiles(
+      final selected = await FilePicker().pickFiles(
         type: FileType.custom,
         allowedExtensions: <String>['pdf'],
       );
