@@ -17,8 +17,8 @@ class ParentEmailService {
     try {
       if (Firebase.apps.isEmpty) await Firebase.initializeApp();
       await FirebaseAppCheck.instance.activate(
-        providerAndroid: AndroidProvider.playIntegrity,
-        providerApple: AppleProvider.appAttest,
+        providerAndroid: const AndroidPlayIntegrityProvider(),
+        providerApple: const AppleAppAttestWithDeviceCheckFallbackProvider(),
       );
       await FirebaseAuth.instance.signInAnonymously();
       ready = FirebaseAuth.instance.currentUser != null;
