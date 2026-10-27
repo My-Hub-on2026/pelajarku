@@ -8,6 +8,7 @@ import '../models/grade_entry.dart';
 import '../models/school_note.dart';
 import '../models/school_task.dart';
 import '../services/notification_service.dart';
+import '../services/parent_email_service.dart';
 
 class AppStore extends ChangeNotifier {
   AppStore({
@@ -36,6 +37,7 @@ class AppStore extends ChangeNotifier {
       await _notifications.initialize(
         timezoneName: settings['timezone'] ?? 'Asia/Jakarta',
       );
+      await ParentEmailService.instance.initialize();
       await reload();
       await _notifications.rescheduleAll(tasks,
           (id) => courseById(id)?.name ?? 'Sekolah');
@@ -124,16 +126,19 @@ class AppStore extends ChangeNotifier {
 
   Future<void> saveCourse(Course course) async {
     await _database.upsertCourse(course);
+    ParentEmailService.instance.notifyChange(type: 'jadwal', action: 'diubah', summary: course.name);
     await reload();
   }
 
   Future<void> deleteCourse(Course course) async {
     await _database.deleteCourse(course.id);
+    ParentEmailService.instance.notifyChange(type: 'jadwal', action: 'dihapus', summary: course.name);
     await reload();
   }
 
   Future<void> saveTask(SchoolTask task) async {
     await _database.upsertTask(task);
+    ParentEmailService.instance.notifyChange(type: 'tugas', action: 'diubah', summary: task.title);
     await _notifications.scheduleTask(
       task,
       courseById(task.courseId)?.name ?? 'Sekolah',
@@ -144,6 +149,7 @@ class AppStore extends ChangeNotifier {
   Future<void> toggleTask(SchoolTask task) async {
     final SchoolTask updated = task.copyWith(isDone: !task.isDone);
     await _database.upsertTask(updated);
+    ParentEmailService.instance.notifyChange(type: 'tugas', action: updated.isDone ? 'diselesaikan' : 'diubah', summary: updated.title);
     if (updated.isDone) {
       await _notifications.cancelTask(updated);
     } else {
@@ -158,41 +164,49 @@ class AppStore extends ChangeNotifier {
   Future<void> deleteTask(SchoolTask task) async {
     await _notifications.cancelTask(task);
     await _database.deleteTask(task.id);
+    ParentEmailService.instance.notifyChange(type: 'tugas', action: 'dihapus', summary: task.title);
     await reload();
   }
 
   Future<void> saveGrade(GradeEntry grade) async {
     await _database.upsertGrade(grade);
+    ParentEmailService.instance.notifyChange(type: 'nilai', action: 'diubah', summary: grade.category);
     await reload();
   }
 
   Future<void> deleteGrade(GradeEntry grade) async {
     await _database.deleteGrade(grade.id);
+    ParentEmailService.instance.notifyChange(type: 'nilai', action: 'dihapus', summary: grade.category);
     await reload();
   }
 
   Future<void> saveAttendance(AttendanceEntry entry) async {
     await _database.upsertAttendance(entry);
+    ParentEmailService.instance.notifyChange(type: 'kehadiran', action: 'diubah', summary: entry.status.name);
     await reload();
   }
 
   Future<void> deleteAttendance(AttendanceEntry entry) async {
     await _database.deleteAttendance(entry.id);
+    ParentEmailService.instance.notifyChange(type: 'kehadiran', action: 'dihapus', summary: entry.status.name);
     await reload();
   }
 
   Future<void> saveNote(SchoolNote note) async {
     await _database.upsertNote(note);
+    ParentEmailService.instance.notifyChange(type: 'catatan', action: 'diubah', summary: note.title);
     await reload();
   }
 
   Future<void> deleteNote(SchoolNote note) async {
     await _database.deleteNote(note.id);
+    ParentEmailService.instance.notifyChange(type: 'catatan', action: 'dihapus', summary: note.title);
     await reload();
   }
 
   Future<void> setSetting(String key, String value) async {
     await _database.setSetting(key, value);
+    if (key != 'parent_email') { ParentEmailService.instance.notifyChange(type: 'profil', action: 'diubah', summary: 'Pengaturan $key'); }
     settings[key] = value;
     notifyListeners();
   }
