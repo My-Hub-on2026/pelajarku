@@ -44,6 +44,11 @@ jobs:
       - name: Configure Android
         run: dart run tool/configure_android.dart
 
+      - name: Configure Firebase if credentials supplied
+        env:
+          FIREBASE_ANDROID_JSON_B64: ${{ secrets.FIREBASE_ANDROID_JSON_B64 }}
+        run: python3 tool/configure_firebase_ci.py
+
       - name: Install packages
         run: flutter pub get
 
