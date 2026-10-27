@@ -9,6 +9,7 @@ import 'package:pdfx/pdfx.dart';
 import 'package:uuid/uuid.dart';
 
 import '../models/school_note.dart';
+import '../models/school_task.dart';
 import '../state/app_store.dart';
 
 /// Teks dikenali di perangkat. Pengguna harus meninjau sebelum menyimpan.
@@ -138,6 +139,81 @@ class _ScanScreenState extends State<ScanScreen> {
     }
   }
 
+  Future<void> _createTaskFromScan() async {
+    final value = controller.text.trim();
+    if (value.isEmpty) return;
+    final firstLine = value.split('\n').first.trim();
+    final titleField = TextEditingController(text:
+      firstLine.length > 80 ? firstLine.substring(0, 80) : firstLine);
+    final lower = value.toLowerCase();
+    final kind = lower.contains('ujian') || lower.contains('ulangan') ||
+        lower.contains('uts') || lower.contains('uas')
+        ? TaskType.ujian : TaskType.tugas;
+    DateTime suggested = DateTime.now().add(const Duration(days: 1));
+    final dateMatch = RegExp(r'(\d{1,2})[./-](\d{1,2})[./-](\d{4})').firstMatch(value);
+    if (dateMatch != null) {
+      final d = int.parse(dateMatch.group(1)!);
+      final m = int.parse(dateMatch.group(2)!);
+      final y = int.parse(dateMatch.group(3)!);
+      final guess = DateTime(y, m, d);
+      if (guess.year == y && guess.month == m && guess.day == d &&
+          guess.isAfter(DateTime.now())) suggested = guess;
+    }
+    DateTime dueAt = DateTime(suggested.year, suggested.month, suggested.day, 23, 59);
+    try {
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (dialogContext) => StatefulBuilder(
+          builder: (context, update) => AlertDialog(
+            title: const Text('Konfirmasi informasi dari pindai'),
+            content: SingleChildScrollView(child: Column(
+              mainAxisSize: MainAxisSize.min, children: [
+                const Text('Periksa judul dan tanggal. Pengenalan dokumen bisa keliru.'),
+                TextField(controller: titleField,
+                  decoration: const InputDecoration(labelText: 'Judul tugas/ujian')),
+                const SizedBox(height: 12),
+                OutlinedButton.icon(
+                  onPressed: () async {
+                    final picked = await showDatePicker(
+                      context: context,
+                      initialDate: dueAt,
+                      firstDate: DateTime.now(),
+                      lastDate: DateTime.now().add(const Duration(days: 3650)));
+                    if (picked != null) update(() {
+                      dueAt = DateTime(picked.year, picked.month, picked.day, 23, 59);
+                    });
+                  },
+                  icon: const Icon(Icons.event),
+                  label: Text('Tenggat: ${dueAt.day}/${dueAt.month}/${dueAt.year}')),
+              ],
+            )),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(dialogContext, false),
+                child: const Text('Batal')),
+              FilledButton(onPressed: () => Navigator.pop(dialogContext, true),
+                child: const Text('Simpan tugas')),
+            ],
+          ),
+        ),
+      );
+      if (confirmed != true || titleField.text.trim().isEmpty || !mounted) return;
+      await AppScope.of(context).saveTask(SchoolTask(
+        id: const Uuid().v4(),
+        title: titleField.text.trim(),
+        type: kind,
+        dueAt: dueAt,
+        reminderAt: dueAt.subtract(const Duration(hours: 1)).isAfter(DateTime.now())
+            ? dueAt.subtract(const Duration(hours: 1)) : null,
+        priority: TaskPriority.sedang,
+        notes: value.length > 1200 ? value.substring(0, 1200) : value,
+      ));
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Tugas hasil pindai sudah ditambahkan.')));
+    } finally {
+      titleField.dispose();
+    }
+  }
+
   @override
   Widget build(BuildContext context) => Scaffold(
     appBar: AppBar(title: const Text('Pindai Gambar & PDF')),
@@ -175,6 +251,12 @@ class _ScanScreenState extends State<ScanScreen> {
           ),
         ),
         const SizedBox(height: 12),
+        OutlinedButton.icon(
+          onPressed: busy ? null : _createTaskFromScan,
+          icon: const Icon(Icons.assignment_add),
+          label: const Text('Jadikan tugas / ujian'),
+        ),
+        const SizedBox(height: 8),
         FilledButton.icon(
           onPressed: busy ? null : _saveNote,
           icon: const Icon(Icons.save_outlined),
